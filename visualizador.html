@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <title>Visualizador 3D de Superfície e Pontos</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        /* [Seu CSS original de Sperficie_33.html permanece aqui, inalterado] */
+        body { margin: 0; background-color: #f0f0f0; overflow: hidden; }
+        canvas { display: block; }
+        
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10; 
+            padding: 8px; 
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 5px;
+            font-family: sans-serif;
+            max-width: 250px;
+            overflow: hidden; 
+            transition: height 0.3s ease, width 0.3s ease; 
+            width: 30px; 
+            height: 30px;
+            cursor: pointer; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        #controls.expanded {
+            width: 250px; 
+            height: auto; 
+            cursor: default;
+            max-height: calc(100vh - 40px); 
+            overflow-y: auto; 
+        }
+        #controls-content {
+            display: none; 
+        }
+        #controls.expanded #controls-content {
+            display: block; 
+        }
+        #toggle-button {
+            font-size: 24px;
+            line-height: 30px; 
+            text-align: center;
+            user-select: none; 
+        }
+        #controls.expanded #toggle-button {
+            text-align: right; 
+            padding-right: 5px;
+        }
+
+        #controls label, #controls h4 {
+            display: block;
+            margin-bottom: 5px;
+            margin-top: 10px;
+        }
+        #controls input {
+            display: block;
+            margin-bottom: 10px;
+            width: 90%;
+        }
+
+        #search-container {
+            display: flex;
+            width: 100%;
+        }
+        #searchInput {
+            flex-grow: 1;
+            width: 65%;
+            margin: 0 5px 0 0;
+        }
+        #searchButton {
+            width: 30%;
+            margin: 0;
+            padding: 5px;
+        }
+        #resetViewButton {
+            width: 95%;
+            margin-top: 5px;
+            padding: 5px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        #resetViewButton:hover {
+            background-color: #5a6268;
+        }
+
+        /* --- MODIFICADO: Posição da info box para bottom-right --- */
+        #info-box-container {
+            position: absolute; 
+            bottom: 10px; /* Mudou de top para bottom */
+            right: 10px;
+            z-index: 11; 
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-family: sans-serif;
+            max-width: 220px;
+            display: none; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        #info-box-container h4 {
+            margin: 0 0 5px 0;
+            padding: 0;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 3px;
+        }
+        #info-box {
+            font-size: 13px;
+        }
+        #info-box strong {
+            color: #333;
+        }
+        #close-info-box {
+            position: absolute;
+            top: 2px;
+            right: 5px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+            user-select: none;
+        }
+        #close-info-box:hover {
+            color: #555;
+        }
+        /* --- FIM DA MODIFICAÇÃO --- */
+
+
+        #label-filter-container {
+            max-height: 150px; 
+            overflow-y: auto;  
+            background: #fdfdfd;
+            padding: 8px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+        }
+        #filter-all-container {
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+        #label-filter-container div {
+            font-family: sans-serif;
+            font-size: 14px;
+            user-select: none;
+        }
+        #label-filter-container label {
+            display: inline;
+            margin: 0;
+        }
+        #label-filter-container input {
+            display: inline;
+            width: auto;
+            margin-bottom: 5px;
+        }
+
+        .label {
+            color: #FFF;
+            font-family: sans-serif;
+            padding: 2px 5px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 3px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .axis-label {
+            font-family: sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            color: #fff;
+        }
+        .axis-label-x {
+            background: rgba(204, 0, 0, 0.7); /* Vermelho */
+        }
+        .axis-label-y {
+            background: rgba(0, 153, 0, 0.7); /* Verde */
+        }
+        .axis-label-z {
+            background: rgba(0, 0, 204, 0.7); /* Azul */
+        }
+
+        #version-text {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #888;
+            font-family: sans-serif;
+            font-size: 12px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls"> 
+        <div id="toggle-button">⚙️</div>
+        <div id="controls-content">
+            
+            <h4>Buscar Ponto:</h4>
+            <div id="search-container">
+                <input type="search" id="searchInput" placeholder="Ex: A1">
+                <button id="searchButton">Ir</button>
+            </div>
+            <button id="resetViewButton">Resetar Visão</button>
+            
+            <hr>
+            <h4>Filtro de Anotações:</h4>
+            <div id="label-filter-container">
+                <small>Carregando dados...</small>
+            </div>
+        </div>
+        <input type="hidden" id="originE" value="0">
+        <input type="hidden" id="originElev" value="0">
+        <input type="hidden" id="originN" value="0">
+    </div>
+
+    <div id="info-box-container">
+        <span id="close-info-box">&times;</span> 
+        <h4>Ponto Selecionado:</h4>
+        <div id="info-box">
+            <small>Clique em um ponto para ver os detalhes.</small>
+        </div>
+    </div>
+
+    <div id="version-text">Inovagro® V 20.1</div>
+    
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js'; 
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+        // --- INÍCIO DA MODIFICAÇÃO: Lógica de Parâmetros da URL ---
+        
+        // 1. Pega os parâmetros da URL
+        const params = new URLSearchParams(window.location.search);
+        
+        // 2. Pega os caminhos dos arquivos passados pela página index.html
+        const glbFileURL = params.get('glb'); // Pega o valor de ?glb=...
+        const csvFileURL = params.get('csv'); // Pega o valor de ?csv=...
+    
+        // 3. Verifica se os arquivos foram especificados
+        if (!glbFileURL || !csvFileURL) {
+            alert("Erro: Nenhum arquivo de projeto foi especificado na URL. Por favor, selecione um projeto a partir da página inicial.");
+            // Redireciona o usuário de volta para o menu
+            window.location.href = "index.html";
+        }
+        // --- FIM DA MODIFICAÇÃO ---
+
+
+        let camera, scene, renderer, labelRenderer, controls;
+        let currentSurface = null;
+        let currentPointsGroup = null;
+        let orientationGizmo = null; 
+
+        const gltfLoader = new GLTFLoader();
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.164/examples/jsm/libs/draco/gltf/');
+        gltfLoader.setDRACOLoader(dracoLoader);
+
+        const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); 
+        let highlightedPoint = null;
+        let isAnimating = false;
+        let animStartTime = 0;
+        const animDuration = 1000; 
+        let animStartPosition = new THREE.Vector3();
+        let animEndPosition = new THREE.Vector3();
+        let animStartTarget = new THREE.Vector3();
+        let animEndTarget = new THREE.Vector3();
+
+        let originalSurfaceCenter = new THREE.Vector3();
+        let originalCameraPosition = new THREE.Vector3(100, 150, 100); 
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function updateLabelVisibility() {
+            const filterCheckboxes = document.querySelectorAll('#label-filter-container input[type="checkbox"]:not(#chk-filter-all)');
+            const filterAllCheckbox = document.getElementById('chk-filter-all');
+            const enabledPrefixes = new Set();
+            let allChecked = true;
+            let noneChecked = true;
+
+            filterCheckboxes.forEach(chk => {
+                if (chk.checked) {
+                    enabledPrefixes.add(chk.value);
+                    noneChecked = false;
+                } else {
+                    allChecked = false;
+                }
+            });
+
+            if (filterAllCheckbox) {
+                 filterAllCheckbox.checked = allChecked;
+            }
+
+            if (!currentPointsGroup) return;
+
+            currentPointsGroup.children.forEach(pointMesh => {
+                const label = pointMesh.children.find(child => child.isCSS2DObject);
+                if (label && label.userData.prefix) {
+                    label.visible = enabledPrefixes.has(label.userData.prefix);
+                }
+            });
+        }
+        window.updateLabelVisibility = updateLabelVisibility;
+
+        function toggleAllFilters(event) {
+            const isChecked = event.target.checked;
+            const filterCheckboxes = document.querySelectorAll('#label-filter-container input[type="checkbox"]:not(#chk-filter-all)');
+            filterCheckboxes.forEach(chk => {
+                chk.checked = isChecked;
+            });
+            updateLabelVisibility(); 
+        }
+
+        init();
+        animate();
+
+        // --- INÍCIO DA MODIFICAÇÃO: Carregamento Automático ---
+        if (glbFileURL && csvFileURL) {
+            console.log(`Carregando GLB: ${glbFileURL}`);
+            loadSurface(glbFileURL);
+
+            console.log(`Buscando CSV: ${csvFileURL}`);
+            fetch(csvFileURL)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro na rede ao buscar CSV: ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(csvText => {
+                    console.log("CSV baixado, carregando pontos...");
+                    loadPoints(csvText, false, updateLabelVisibility);
+                })
+                .catch(error => {
+                    console.error("Falha ao carregar o arquivo CSV:", error);
+                    alert("Não foi possível carregar os dados dos pontos. Verifique o console.");
+                });
+        }
+        // --- FIM DA MODIFICAÇÃO ---
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xabcdef);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 10, 50000); 
+            camera.position.copy(originalCameraPosition); 
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.domElement.style.position = 'absolute';
+            renderer.domElement.style.zIndex = 0; 
+            document.body.appendChild(renderer.domElement);
+
+            labelRenderer = new CSS2DRenderer();
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.domElement.style.position = 'absolute';
+            labelRenderer.domElement.style.top = '0px';
+            labelRenderer.domElement.style.pointerEvents = 'none';
+            labelRenderer.domElement.style.zIndex = 1; 
+            document.body.appendChild(labelRenderer.domElement);
+
+            controls = new TrackballControls(camera, renderer.domElement);
+            controls.rotateSpeed = 1.0;
+            controls.zoomSpeed = 0.6;
+            controls.panSpeed = 0.4;
+            controls.noZoom = false;
+            controls.noPan = false;
+            controls.staticMoving = false;
+            controls.dynamicDampingFactor = 0.15;
+            controls.target.set(0, 0, 0);
+
+            // Luzes
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 3.0);
+            hemiLight.position.set(0, 500, 0);
+            scene.add(hemiLight);
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.0); 
+            dirLight1.position.set(300, 500, 300); 
+            scene.add(dirLight1);
+            const dirLight2 = new THREE.DirectionalLight(0xffffff, 1.5); 
+            dirLight2.position.set(-300, 500, -300); 
+            scene.add(dirLight2);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            // Eixos e Rótulos
+            orientationGizmo = new THREE.Group();
+            const axisLength = 50; 
+            const axesHelper = new THREE.AxesHelper(axisLength);
+            orientationGizmo.add(axesHelper);
+
+            const xLabelDiv = document.createElement('div');
+            xLabelDiv.className = 'axis-label axis-label-x';
+            xLabelDiv.textContent = 'Eixo E (X)';
+            const xLabel = new CSS2DObject(xLabelDiv);
+            xLabel.position.set(axisLength + 5, 0, 0); 
+            orientationGizmo.add(xLabel);
+
+            const yLabelDiv = document.createElement('div');
+            yLabelDiv.className = 'axis-label axis-label-y';
+            yLabelDiv.textContent = 'Eixo Elev (Y)';
+            const yLabel = new CSS2DObject(yLabelDiv);
+            yLabel.position.set(0, axisLength + 5, 0); 
+            orientationGizmo.add(yLabel);
+
+            const zLabelDiv = document.createElement('div');
+            zLabelDiv.className = 'axis-label axis-label-z';
+            zLabelDiv.textContent = 'Eixo N (Z)';
+            const zLabel = new CSS2DObject(zLabelDiv);
+            zLabel.position.set(0, 0, axisLength + 5); 
+            orientationGizmo.add(zLabel);
+            
+            scene.add(orientationGizmo);
+
+            // Event Listeners
+            
+            // --- MODIFICAÇÃO: Listeners de arquivo removidos ---
+            /*
+            document.getElementById('surfaceFile').addEventListener('change', ...);
+            document.getElementById('pointsFile').addEventListener('change', ...);
+            */
+            // --- FIM DA MODIFICAÇÃO ---
+
+            document.getElementById('searchButton').addEventListener('click', handleSearch);
+            document.getElementById('searchInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    handleSearch();
+                    e.preventDefault();
+                }
+            });
+            
+            document.getElementById('resetViewButton').addEventListener('click', resetView);
+            
+            renderer.domElement.addEventListener('click', onPointClick);
+
+            document.getElementById('originE').addEventListener('change', reloadData);
+            document.getElementById('originElev').addEventListener('change', reloadData);
+            document.getElementById('originN').addEventListener('change', reloadData);
+
+            window.addEventListener('resize', onWindowResize);
+
+            document.getElementById('toggle-button').addEventListener('click', (e) => {
+                 document.getElementById('controls').classList.toggle('expanded');
+                 e.stopPropagation(); 
+            });
+            document.getElementById('controls-content').addEventListener('click', (e) => {
+                 e.stopPropagation();
+            });
+
+            document.getElementById('close-info-box').addEventListener('click', (e) => {
+                deselectPoint();
+                e.stopPropagation(); 
+            });
+        }
+        
+        function deselectPoint() {
+            if (highlightedPoint && highlightedPoint.userData.originalMaterial) {
+                highlightedPoint.material = highlightedPoint.userData.originalMaterial;
+                highlightedPoint = null;
+            }
+            document.getElementById('info-box').innerHTML = '<small>Clique em um ponto para ver os detalhes.</small>';
+            document.getElementById('info-box-container').style.display = 'none';
+        }
+        
+        function onPointClick(event) {
+            if (isAnimating) return;
+
+            if (document.getElementById('controls').classList.contains('expanded')) {
+                 const controlsRect = document.getElementById('controls').getBoundingClientRect();
+                 if (event.clientX >= controlsRect.left && event.clientX <= controlsRect.right &&
+                     event.clientY >= controlsRect.top && event.clientY <= controlsRect.bottom) {
+                     return; 
+                 }
+            }
+
+
+            mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+            mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+            raycaster.setFromCamera( mouse, camera );
+
+            if (!currentPointsGroup) return;
+
+            const intersects = raycaster.intersectObjects( currentPointsGroup.children );
+
+            if ( intersects.length > 0 ) {
+                const clickedPoint = intersects[0].object;
+
+                if (highlightedPoint) {
+                    highlightedPoint.material = highlightedPoint.userData.originalMaterial;
+                }
+
+                highlightedPoint = clickedPoint;
+                highlightedPoint.material = highlightMaterial;
+                
+                const coords = highlightedPoint.userData.originalCoords;
+                const id = highlightedPoint.userData.pointID;
+                const infoBox = document.getElementById('info-box');
+                const infoBoxContainer = document.getElementById('info-box-container');
+                
+                infoBox.innerHTML = `
+                    <strong>ID:</strong> ${id}<br>
+                    <strong>Easting:</strong> ${coords.e.toFixed(3)}<br>
+                    <strong>Elevação:</strong> ${coords.n.toFixed(3)}<br> 
+                    <strong>Northing:</strong> ${coords.z.toFixed(3)}
+                `;
+                infoBoxContainer.style.display = 'block'; 
+
+            } else {
+                deselectPoint(); 
+            }
+        }
+        
+        function reloadData() {
+            if (currentSurface) {
+                const E = parseFloat(document.getElementById('originE').value) || 0;
+                const Elev = parseFloat(document.getElementById('originElev').value) || 0;
+                const N = parseFloat(document.getElementById('originN').value) || 0;
+                currentSurface.position.set(-E, -Elev, -N);
+                console.log(`Superfície reposicionada para origem: E:${E}, N:${N}, Elev:${Elev}`);
+            
+                const box = new THREE.Box3().setFromObject(currentSurface);
+                const center = box.getCenter(new THREE.Vector3());
+                orientationGizmo.position.copy(center);
+                originalSurfaceCenter.copy(center);
+            }
+
+            // --- INÍCIO DA MODIFICAÇÃO: Recarregar CSV da URL ---
+            if (csvFileURL) {
+                console.log(`Recarregando CSV: ${csvFileURL}`);
+                fetch(csvFileURL)
+                    .then(response => {
+                        if (!response.ok) throw new Error("Erro ao buscar CSV para recarregar.");
+                        return response.text();
+                    })
+                    .then(csvText => {
+                        loadPoints(csvText, true, updateLabelVisibility);
+                    })
+                    .catch(error => {
+                        console.error("Falha ao recarregar pontos:", error);
+                        alert("Não foi possível recarregar os dados dos pontos.");
+                    });
+            }
+            // --- FIM DA MODIFICAÇÃO ---
+        }
+
+        function loadSurface(url) {
+            if (currentSurface) {
+                scene.remove(currentSurface);
+                currentSurface = null;
+            }
+
+            const E = parseFloat(document.getElementById('originE').value) || 0;
+            const Elev = parseFloat(document.getElementById('originElev').value) || 0;
+            const N = parseFloat(document.getElementById('originN').value) || 0;
+
+            gltfLoader.load(
+                url,
+                (gltf) => {
+                    currentSurface = gltf.scene;
+                    
+                    currentSurface.traverse(function (child) {
+                        if (child.isMesh) {
+                            const newMaterial = new THREE.MeshBasicMaterial();
+                            if (child.geometry.attributes.color) {
+                                newMaterial.vertexColors = true;
+                            } 
+                            else if (child.material && child.material.map) {
+                                newMaterial.map = child.material.map;
+                            } 
+                            else {
+                                newMaterial.color = new THREE.Color(0xcccccc);
+                            }
+                            newMaterial.side = THREE.DoubleSide; 
+                            child.material = newMaterial;
+                        }
+                    });
+
+                    currentSurface.position.set(-E, -Elev, -N);
+                    scene.add(currentSurface);
+                    console.log('Superfície carregada.');
+
+                    const box = new THREE.Box3().setFromObject(currentSurface);
+                    const center = box.getCenter(new THREE.Vector3());
+                    
+                    controls.target.copy(center); 
+                    orientationGizmo.position.copy(center); 
+                    
+                    const size = box.getSize(new THREE.Vector3()).length();
+                    camera.position.copy(center);
+                    camera.position.x += size / 2.0;
+                    camera.position.y += size / 5.0;
+                    camera.position.z += size / 2.0;
+
+                    originalSurfaceCenter.copy(center);
+                    originalCameraPosition.copy(camera.position);
+                    
+                    controls.update();
+                },
+                undefined,
+                (error) => {
+                    console.error('Erro ao carregar a superfície:', error);
+                    alert('Erro ao carregar o arquivo da superfície.');
+                }
+            );
+        }
+
+        function loadPoints(csvData, isReload = false, onFilterChange) {
+            if (currentPointsGroup) {
+                scene.remove(currentPointsGroup);
+                currentPointsGroup = null;
+            }
+
+            currentPointsGroup = new THREE.Group();
+            scene.add(currentPointsGroup);
+
+            const filterContainer = document.getElementById('label-filter-container');
+            filterContainer.innerHTML = ''; 
+            const prefixes = new Set();
+            let hasPoints = false;
+
+            const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
+            if (lines.length === 0) {
+                console.warn("Arquivo CSV vazio ou inválido.");
+                return;
+            }
+
+            let originE = parseFloat(document.getElementById('originE').value) || 0;
+            let originElev = parseFloat(document.getElementById('originElev').value) || 0;
+            let originN = parseFloat(document.getElementById('originN').value) || 0;
+
+            if (originE === 0 && originElev === 0 && originN === 0 && !isReload) {
+                const parts = lines[0].split(',');
+                if (parts.length >= 5) {
+                    originE = parseFloat(parts[1]);    // E
+                    originN = parseFloat(parts[2]);    // N
+                    originElev = parseFloat(parts[3]); // Z (Elevação)
+
+                    document.getElementById('originE').value = originE;
+                    document.getElementById('originElev').value = originElev;
+                    document.getElementById('originN').value = originN;
+                    console.log(`Origem definida automaticamente pelo primeiro ponto do CSV: E:${originE}, N:${originN}, Elev:${originElev}`);
+                
+                    if (currentSurface) {
+                        currentSurface.position.set(-originE, -originElev, -originN);
+                        
+                        const box = new THREE.Box3().setFromObject(currentSurface);
+                        const center = box.getCenter(new THREE.Vector3());
+                        const size = box.getSize(new THREE.Vector3()).length();
+
+                        controls.target.copy(center);
+                        orientationGizmo.position.copy(center);
+
+                        camera.position.copy(center);
+                        camera.position.x += size / 2.0;
+                        camera.position.y += size / 5.0;
+                        camera.position.z += size / 2.0;
+                        
+                        originalSurfaceCenter.copy(center);
+                        originalCameraPosition.copy(camera.position);
+
+                        controls.update(); 
+                    }
+                }
+            }
+            
+            lines.forEach(line => {
+                line = line.trim();
+                const parts = line.trim().split(',');
+                if (parts.length < 5) {
+                    console.warn('Linha CSV ignorada (formato incorreto):', line);
+                    return;
+                }
+
+                const pointID = parts[0];
+                const desc = parts[4];
+                
+                const rawE = parseFloat(parts[1]);
+                const rawN = parseFloat(parts[2]);
+                const rawElev = parseFloat(parts[3]);
+                
+                const match = pointID.match(/^([a-zA-Z]+)/); 
+                const prefix = match ? match[1] : 'outros'; 
+                prefixes.add(prefix);
+                hasPoints = true;
+                
+                const x = rawE - originE;
+                const y = rawElev - originElev; 
+                const z = rawN - originN;       
+
+                const pointGeo = new THREE.SphereGeometry(0.5, 16, 16); 
+                const pointMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const pointMesh = new THREE.Mesh(pointGeo, pointMat);
+                
+                pointMesh.userData.pointID = pointID.toUpperCase();
+                pointMesh.userData.originalMaterial = pointMat;
+                pointMesh.userData.originalCoords = { e: rawE, n: rawN, z: rawElev };
+
+                pointMesh.position.set(x, y, z); 
+                currentPointsGroup.add(pointMesh);
+
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'label';
+                labelDiv.textContent = `${pointID}: ${desc}`;
+                
+                const labelObject = new CSS2DObject(labelDiv);
+                labelObject.position.set(0, 1, 0); 
+                labelObject.userData.prefix = prefix; 
+                pointMesh.add(labelObject);
+            });
+
+            if (hasPoints) {
+                const allDiv = document.createElement('div');
+                allDiv.id = 'filter-all-container';
+                const allCheckbox = document.createElement('input');
+                allCheckbox.type = 'checkbox';
+                allCheckbox.id = 'chk-filter-all';
+                allCheckbox.value = 'all';
+                allCheckbox.checked = true; 
+                allCheckbox.addEventListener('change', toggleAllFilters);
+
+                const allLabel = document.createElement('label');
+                allLabel.htmlFor = 'chk-filter-all';
+                allLabel.textContent = ` Marcar/Desmarcar Todos`; 
+
+                allDiv.appendChild(allCheckbox);
+                allDiv.appendChild(allLabel);
+                filterContainer.appendChild(allDiv);
+
+                const sortedPrefixes = Array.from(prefixes).sort();
+                sortedPrefixes.forEach(prefix => {
+                    const checkboxDiv = document.createElement('div');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `chk-filter-${prefix}`;
+                    checkbox.value = prefix;
+                    checkbox.checked = true; 
+                    checkbox.addEventListener('change', onFilterChange);
+
+                    const label = document.createElement('label');
+                    label.htmlFor = `chk-filter-${prefix}`;
+                    label.textContent = ` ${prefix}`; 
+
+                    checkboxDiv.appendChild(checkbox);
+                    checkboxDiv.appendChild(label);
+                    filterContainer.appendChild(checkboxDiv);
+                });
+            } else {
+                filterContainer.innerHTML = '<small>Não foram encontrados pontos.</small>';
+            }
+
+            console.log(`Carregados ${currentPointsGroup.children.length} pontos.`);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            controls.handleResize();
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toUpperCase();
+            if (!query || !currentPointsGroup) return;
+
+            const targetPoint = currentPointsGroup.children.find(point => point.userData.pointID === query);
+
+            if (targetPoint) {
+                controls.reset();
+                flyToPoint(targetPoint, true); 
+                
+                deselectPoint(); 
+
+                highlightedPoint = targetPoint;
+                highlightedPoint.material = highlightMaterial;
+                
+                const coords = highlightedPoint.userData.originalCoords;
+                const id = highlightedPoint.userData.pointID;
+                const infoBox = document.getElementById('info-box');
+                const infoBoxContainer = document.getElementById('info-box-container');
+                
+                // Exibição corrigida para E, N, Z 
+                infoBox.innerHTML = `
+                    <strong>ID:</strong> ${id}<br>
+                    <strong>Easting:</strong> ${coords.e.toFixed(3)}<br>
+                    <strong>Elevação:</strong> ${coords.n.toFixed(3)}<br> 
+                    <strong>Northing:</strong> ${coords.z.toFixed(3)}
+                `;
+                infoBoxContainer.style.display = 'block'; 
+
+            } else {
+                alert('Ponto não encontrado.');
+            }
+        }
+        
+        function resetView() {
+            if (isAnimating) return; 
+
+            deselectPoint(); 
+            controls.reset();
+            flyToPoint(null, false); 
+        }
+
+        function flyToPoint(pointMesh, isSearch) {
+            if (isSearch) {
+                animEndTarget.copy(pointMesh.position);
+                animEndPosition.copy(pointMesh.position).add(new THREE.Vector3(0, 20, 20));
+            } else {
+                animEndTarget.copy(originalSurfaceCenter);
+                animEndPosition.copy(originalCameraPosition);
+            }
+            
+            animStartPosition.copy(camera.position);
+            animStartTarget.copy(controls.target);
+
+            isAnimating = true;
+            animStartTime = performance.now();
+            controls.enabled = false;
+        }
+        
+        function updateAnimation() {
+            const now = performance.now();
+            let t = (now - animStartTime) / animDuration;
+            t = Math.min(t, 1.0); 
+
+            const easedT = 1 - Math.pow(1 - t, 3); 
+
+            camera.position.lerpVectors(animStartPosition, animEndPosition, easedT);
+            controls.target.lerpVectors(animStartTarget, animEndTarget, easedT);
+
+            if (t >= 1.0) {
+                isAnimating = false;
+                controls.enabled = true; 
+                camera.position.copy(animEndPosition);
+                controls.target.copy(animEndTarget);
+                controls.update();
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isAnimating) {
+                updateAnimation();
+            } else {
+                const controlsPanel = document.getElementById('controls');
+                const infoBoxPanel = document.getElementById('info-box-container'); 
+                
+                let mouseIsOverUI = false;
+                const lastMouseMoveEvent = window._lastMouseMoveEvent; 
+                if(lastMouseMoveEvent) {
+                    const controlsRect = controlsPanel.getBoundingClientRect();
+                    const infoBoxRect = infoBoxPanel.style.display === 'block' ? infoBoxPanel.getBoundingClientRect() : null; 
+                    
+                    const overControls = lastMouseMoveEvent.clientX >= controlsRect.left && lastMouseMoveEvent.clientX <= controlsRect.right &&
+                                         lastMouseMoveEvent.clientY >= controlsRect.top && lastMouseMoveEvent.clientY <= controlsRect.bottom;
+                    
+                    const overInfoBox = infoBoxRect && 
+                                        (lastMouseMoveEvent.clientX >= infoBoxRect.left && lastMouseMoveEvent.clientX <= infoBoxRect.right &&
+                                         lastMouseMoveEvent.clientY >= infoBoxRect.top && lastMouseMoveEvent.clientY <= infoBoxRect.bottom);
+
+                    mouseIsOverUI = overControls || overInfoBox;
+                }
+                
+                if (!mouseIsOverUI) {
+                     controls.update(); 
+                }
+            }
+            
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera); 
+        }
+
+        window.addEventListener('mousemove', (event) => {
+            window._lastMouseMoveEvent = event;
+        }, false);
+    </script>
+</body>
+</html>
