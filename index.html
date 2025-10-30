@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Inovagro 3D</title>
+    
+    <title>Inovagro_3D</title>
+    
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -15,10 +18,23 @@
             margin: 20px auto;
             background-color: #f4f7f6;
         }
+
+        /* --- NOVO: Estilos para a Imagem/Logo --- */
+        #logo-container {
+            text-align: center; /* Centraliza a imagem */
+            margin-bottom: 20px; /* Espaço entre a imagem e o título */
+        }
+        #logo-principal {
+            max-width: 200px; /* Defina o tamanho máximo da sua logo */
+            height: auto;
+        }
+        /* --- FIM DA MODIFICAÇÃO --- */
+
         h1 { 
             border-bottom: 2px solid #ddd; 
             padding-bottom: 10px; 
             color: #333;
+            text-align: center; /* --- MODIFICADO: Título centralizado --- */
         }
         ul { 
             list-style: none; 
@@ -38,19 +54,29 @@
             text-decoration: none; 
             font-size: 1.2em;
             padding: 15px 20px;
-            background-color: #007bff;
+            /* --- MODIFICADO: Cor trocada para verde --- */
+            background-color: #378640;
             color: white;
             border-radius: 5px;
             display: block;
             font-weight: 500;
+            text-align: center; /* Centraliza o texto dentro do botão */
         }
         a:hover { 
-            background-color: #0056b3; 
+            /* --- MODIFICADO: Cor de hover para verde escuro --- */
+            background-color: #2a6b32; 
         }
     </style>
 </head>
 <body>
+
+    <div id="logo-container">
+        <img src="logo_inovagro.png" alt="Logo do Projeto" id="logo-principal">
+    </div>
+
+
     <h1>Selecione um Projeto para Visualizar</h1>
+
     <ul>
         <li>
             <a href="visualizador.html?glb=projetos/T_16/superficie_t16.glb&csv=projetos/T_16/pontos_t16.csv">
@@ -79,10 +105,3 @@
         </ul>
 </body>
 </html>
-
-
-
-
-
-
-
