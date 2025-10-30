@@ -338,10 +338,8 @@
         init();
         animate();
 
-        // --- INÍCIO DA MODIFICAÇÃO: Carregamento Automático ---
+// --- INÍCIO DA MODIFICAÇÃO: Carregamento Automático (Corrigido) ---
         if (glbFileURL && csvFileURL) {
-            console.log(`Carregando GLB: ${glbFileURL}`);
-            loadSurface(glbFileURL);
 
             console.log(`Buscando CSV: ${csvFileURL}`);
             fetch(csvFileURL)
@@ -352,13 +350,22 @@
                     return response.text();
                 })
                 .then(csvText => {
+                    // 1. PRIMEIRO: Carrega os pontos.
+                    //    Isso define a origem nos campos <input> ocultos.
                     console.log("CSV baixado, carregando pontos...");
                     loadPoints(csvText, false, updateLabelVisibility);
+
+                    // 2. SEGUNDO: AGORA que a origem está definida,
+                    //    carrega a superfície.
+                    console.log(`Carregando GLB: ${glbFileURL}`);
+                    loadSurface(glbFileURL);
                 })
                 .catch(error => {
                     console.error("Falha ao carregar o arquivo CSV:", error);
                     alert("Não foi possível carregar os dados dos pontos. Verifique o console.");
                 });
+            
+            // A linha 'loadSurface(glbFileURL)' foi removida daqui.
         }
         // --- FIM DA MODIFICAÇÃO ---
 
@@ -900,4 +907,5 @@
         }, false);
     </script>
 </body>
+
 </html>
