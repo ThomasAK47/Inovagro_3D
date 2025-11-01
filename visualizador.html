@@ -107,12 +107,22 @@
             display: none; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
-        #info-box-container h4 {
-            margin: 0 0 5px 0;
-            padding: 0;
-            font-size: 14px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 3px;
+        /* --- MODIFICADO: Posição da info box para bottom-right --- */
+        #info-box-container {
+            position: absolute; 
+            /* MODIFICADO: Mova a caixa para CIMA da nova barra */
+            bottom: 50px; /* (Altura da barra (40px) + 10px de margem) */
+            right: 10px;
+            z-index: 11; 
+            /* O resto dos estilos permanece o mesmo... */
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-family: sans-serif;
+            max-width: 220px;
+            display: none; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         #info-box {
             font-size: 13px;
@@ -195,12 +205,39 @@
 
         #version-text {
             position: absolute;
-            bottom: 10px;
+            /* MODIFICADO: Mova o texto para cima da barra */
+            bottom: 12px; /* (baseado na altura de 40px da barra) */
             left: 10px;
-            color: #888;
+            color: #555; /* (Cor mais escura para melhor contraste no branco) */
             font-family: sans-serif;
             font-size: 12px;
+            z-index: 11; /* (Coloca em cima da barra) */
+        }
+
+        /* --- NOVO: Estilos da Barra de Rodapé --- */
+        #footer-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px; /* Altura fixa para a barra */
+            background-color: white;
+            color: black;
+            text-align: center;
+            line-height: 40px; /* Centraliza o texto verticalmente */
             z-index: 10;
+            font-family: sans-serif;
+            font-size: 14px;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1); /* Sombra opcional */
+        }
+
+        #footer-logo {
+            position: absolute;
+            bottom: 5px; /* 5px de distância do fundo */
+            right: 10px; /* 10px de distância da direita */
+            height: 30px; /* 30px de altura (para caber nos 40px da barra) */
+            width: auto;
+            z-index: 11; /* Para ficar em cima da barra */
         }
     </style>
 </head>
@@ -237,7 +274,11 @@
     </div>
 
     <div id="version-text">Inovagro® V 20.1</div>
-    
+    <div id="footer-bar">
+        <span>Total de Furos na data 31/10/2025: 147</span>
+    </div>
+
+    <img src="caminho/para/sua/imagem.png" alt="Logo" id="footer-logo">
 <script type="importmap">
     {
         "imports": {
@@ -912,5 +953,6 @@
 </body>
 
 </html>
+
 
 
