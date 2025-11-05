@@ -273,11 +273,10 @@
         </div>
     </div>
 
-    <div id="version-text">Inovagro® V 20.1</div>
+    <div id="version-text">Inovagro®</div>
     <div id="footer-bar">
-        <span>Total de Furos na data 01/11/2025: 879</span>
+        <span>Total de Furos na data 31/10/2025: <span id="point-count-display">...</span></span>
     </div>
-
     <img src="INOVAGROLOGO3.png" alt="Logo" id="footer-logo">
 <script type="importmap">
     {
@@ -694,6 +693,15 @@
             let hasPoints = false;
 
             const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
+            try {
+                const lineCount = lines.length;
+                const countDisplayElement = document.getElementById('point-count-display');
+                if (countDisplayElement) {
+                    countDisplayElement.textContent = lineCount;
+                }
+            } catch (e) {
+                console.warn("Não foi possível atualizar a contagem de pontos.", e);
+            }
             if (lines.length === 0) {
                 console.warn("Arquivo CSV vazio ou inválido.");
                 return;
@@ -953,6 +961,7 @@
 </body>
 
 </html>
+
 
 
 
