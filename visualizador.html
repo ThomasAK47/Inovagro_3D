@@ -945,11 +945,14 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            updateLabelVisibilityByZoom();
+            updateLabelVisibilityByZoom(); // Chama a função de visibilidade
 
+            // Verifica se a animação 'flyToPoint' está rodando
             if (isAnimating) {
                 updateAnimation();
             } else {
+                // Se não estiver animando, atualiza os controles do mouse
+                
                 // Lógica de UI para não mover a câmera quando o mouse está sobre os painéis
                 const controlsPanel = document.getElementById('controls');
                 const infoBoxPanel = document.getElementById('info-box-container'); 
@@ -975,6 +978,7 @@
                 }
             }
             
+            // Renderiza a cena (estas linhas devem ficar fora dos blocos 'if/else')
             renderer.render(scene, camera);
             labelRenderer.render(scene, camera); 
         }
@@ -986,6 +990,7 @@
 </body>
 
 </html>
+
 
 
 
