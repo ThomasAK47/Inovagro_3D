@@ -949,10 +949,8 @@
 
             if (isAnimating) {
                 updateAnimation();
-
-            if (isAnimating) {
-                updateAnimation();
             } else {
+                // Lógica de UI para não mover a câmera quando o mouse está sobre os painéis
                 const controlsPanel = document.getElementById('controls');
                 const infoBoxPanel = document.getElementById('info-box-container'); 
                 
@@ -980,6 +978,10 @@
             renderer.render(scene, camera);
             labelRenderer.render(scene, camera); 
         }
+            
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera); 
+        }
 
         window.addEventListener('mousemove', (event) => {
             window._lastMouseMoveEvent = event;
@@ -988,6 +990,7 @@
 </body>
 
 </html>
+
 
 
 
