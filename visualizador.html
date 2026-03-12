@@ -12,47 +12,56 @@
         body { margin: 0; background-color: #f0f0f0; overflow: hidden; }
         canvas { display: block; }
         
+/* --- MODIFICADO: Estilos modernos do Menu de Controles --- */
         #controls {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 15px;
+            left: 15px;
             z-index: 10; 
-            padding: 8px; 
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 5px;
-            font-family: sans-serif;
-            max-width: 250px;
+            padding: 10px; 
+            /* Efeito Glassmorphism (Desfoque/Blur) */
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); /* Suporte para Safari/iOS */
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 12px; /* Bordas mais arredondadas */
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            max-width: 300px;
             overflow: hidden; 
-            transition: height 0.3s ease, width 0.3s ease; 
-            width: 30px; 
-            height: 30px;
+            /* Transição mais suave e elástica */
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); 
+            width: 35px; 
+            height: 35px;
             cursor: pointer; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
         #controls.expanded {
-            width: 250px; 
+            width: 280px; 
             height: auto; 
             cursor: default;
-            max-height: calc(100vh - 40px); 
+            max-height: calc(100vh - 80px); 
             overflow-y: auto; 
         }
         #controls-content {
             display: none; 
+            margin-top: 10px; /* Espaço extra após expandir */
         }
         #controls.expanded #controls-content {
             display: block; 
         }
         #toggle-button {
             font-size: 24px;
-            line-height: 30px; 
+            line-height: 35px; 
             text-align: center;
             user-select: none; 
+            transition: transform 0.3s ease; /* Animação ao girar */
         }
         #controls.expanded #toggle-button {
             text-align: right; 
             padding-right: 5px;
+            transform: rotate(90deg); /* O ícone de engrenagem gira ao abrir */
         }
-
+        /* --- FIM DA MODIFICAÇÃO --- */
         #controls label, #controls h4 {
             display: block;
             margin-bottom: 5px;
@@ -244,6 +253,32 @@
             width: auto;
             z-index: 11; /* Para ficar em cima da barra */
         }
+        /* --- NOVO: Regras de Responsividade --- */
+        @media (max-width: 768px) {
+            #controls {
+                top: auto;
+                bottom: 80px; /* Joga o menu para perto do rodapé no celular */
+                left: 10px;
+            }
+            #controls.expanded {
+                width: calc(100vw - 40px); /* Ocupa quase a tela toda na horizontal */
+                max-height: 40vh; /* Ocupa no máximo 40% da altura da tela */
+            }
+            #legenda-painel {
+                top: 10px;
+                right: 10px;
+                padding: 10px 15px;
+                min-width: 160px;
+            }
+            #legenda-painel h3 {
+                font-size: 14px;
+            }
+            .legenda-item {
+                font-size: 12px;
+                margin-bottom: 8px;
+            }
+        }
+        /* --- FIM DA MODIFICAÇÃO --- */
     </style>
 </head>
 <body>
@@ -280,10 +315,86 @@
 
     <div id="version-text">Inovagro®</div>
     <div id="footer-bar">
-        <span>Total de Furos na data 31/10/2025: <span id="point-count-display">...</span></span>
+        <span>Total de Furos na data 12/03/2026: <span id="point-count-display">...</span></span>
     </div>
     <img src="INOVAGROLOGO3.png" alt="Logo" id="footer-logo">
-<script type="importmap">
+    <img src="INOVAGROLOGO3.png" alt="Logo" id="footer-logo">
+	<div id="legenda-painel">
+        <h3>Legenda e Quantitativos</h3>
+        <div class="legenda-item">
+            <span class="bola" style="background-color: blue;"></span>
+            <span>DHP: <strong id="qtd-dhp">0</strong></span>
+        </div>
+        <div class="legenda-item">
+            <span class="bola" style="background-color: yellow;"></span>
+            <span>Arrancamento (ARR): <strong id="qtd-arr">0</strong></span>
+        </div>
+        <div class="legenda-item">
+            <span class="bola" style="background-color: orange;"></span>
+            <span>CRISTA: <strong id="qtd-crista">0</strong></span>
+        </div>
+        <div class="legenda-item">
+            <span class="bola" style="background-color: red;"></span>
+            <span>Grampos: <strong id="qtd-outros">0</strong></span>
+        </div>
+        <div class="legenda-total">
+            <span>Total de Furos: <strong id="qtd-total">0</strong></span>
+        </div>
+    </div>
+
+    <style>
+        /* --- MODIFICADO: Estilos modernos da Legenda --- */
+        #legenda-painel {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            /* Efeito Glassmorphism Escuro para contrastar com o menu branco */
+            background-color: rgba(30, 30, 30, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f0f0f0;
+            padding: 15px 20px;
+            border-radius: 12px;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            z-index: 999;
+            min-width: 200px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        #legenda-painel h3 { 
+            margin-top: 0; 
+            font-size: 15px; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2); 
+            padding-bottom: 8px; 
+            margin-bottom: 12px; 
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .legenda-item { 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 10px; 
+            font-size: 13px; 
+        }
+        .bola { 
+            width: 14px; 
+            height: 14px; 
+            border-radius: 50%; 
+            display: inline-block; 
+            margin-right: 12px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5); /* Sombrinha na cor para destacar */
+        }
+        .legenda-total { 
+            margin-top: 15px; 
+            padding-top: 12px; 
+            border-top: 1px solid rgba(255, 255, 255, 0.2); 
+            font-size: 14px; 
+            font-weight: bold;
+        }
+        /* --- FIM DA MODIFICAÇÃO --- */
+    </style>
+    <script type="importmap">
     {
         "imports": {
             "three": "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js",
@@ -302,7 +413,7 @@
         // --- INÍCIO DA MODIFICAÇÃO: Lógica de Parâmetros da URL ---
         // --- NOVO: Distância para ocultar os rótulos ---
         // (Ajuste este valor conforme necessário)
-        const labelVisibilityThreshold = 50;
+        const labelVisibilityThreshold = 90;
         // 1. Pega os parâmetros da URL
         const params = new URLSearchParams(window.location.search);
         
@@ -700,7 +811,7 @@
             );
         }
 
-        function loadPoints(csvData, isReload = false, onFilterChange) {
+	function loadPoints(csvData, isReload = false, onFilterChange) {
             if (currentPointsGroup) {
                 scene.remove(currentPointsGroup);
                 currentPointsGroup = null;
@@ -708,13 +819,13 @@
 
             currentPointsGroup = new THREE.Group();
             scene.add(currentPointsGroup);
-
             const filterContainer = document.getElementById('label-filter-container');
             filterContainer.innerHTML = ''; 
             const prefixes = new Set();
             let hasPoints = false;
-
+            
             const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
+            
             try {
                 const lineCount = lines.length;
                 const countDisplayElement = document.getElementById('point-count-display');
@@ -724,6 +835,7 @@
             } catch (e) {
                 console.warn("Não foi possível atualizar a contagem de pontos.", e);
             }
+            
             if (lines.length === 0) {
                 console.warn("Arquivo CSV vazio ou inválido.");
                 return;
@@ -732,22 +844,20 @@
             let originE = parseFloat(document.getElementById('originE').value) || 0;
             let originElev = parseFloat(document.getElementById('originElev').value) || 0;
             let originN = parseFloat(document.getElementById('originN').value) || 0;
-
+            
             if (originE === 0 && originElev === 0 && originN === 0 && !isReload) {
                 const parts = lines[0].split(',');
                 if (parts.length >= 5) {
-                    originE = parseFloat(parts[1]);    // E
-                    originN = parseFloat(parts[2]);    // N
+                    originE = parseFloat(parts[1]); // E
+                    originN = parseFloat(parts[2]); // N
                     originElev = parseFloat(parts[3]); // Z (Elevação)
 
                     document.getElementById('originE').value = originE;
                     document.getElementById('originElev').value = originElev;
                     document.getElementById('originN').value = originN;
-                    console.log(`Origem definida automaticamente pelo primeiro ponto do CSV: E:${originE}, N:${originN}, Elev:${originElev}`);
-                
+                    
                     if (currentSurface) {
                         currentSurface.position.set(-originE, -originElev, -originN);
-                        
                         const box = new THREE.Box3().setFromObject(currentSurface);
                         const center = box.getCenter(new THREE.Vector3());
                         const size = box.getSize(new THREE.Vector3()).length();
@@ -763,22 +873,28 @@
                         originalSurfaceCenter.copy(center);
                         originalCameraPosition.copy(camera.position);
 
-                        controls.update(); 
+                        controls.update();
                     }
                 }
             }
-            
+
+            // --- INICIALIZAÇÃO DOS CONTADORES ---
+            let contadorDHP = 0;
+            let contadorARR = 0;
+            let contadorCRISTA = 0; // Novo contador
+            let contadorOutros = 0;
+            // ------------------------------------
+
             lines.forEach(line => {
                 line = line.trim();
                 const parts = line.trim().split(',');
                 if (parts.length < 5) {
-                    console.warn('Linha CSV ignorada (formato incorreto):', line);
                     return;
                 }
 
                 const pointID = parts[0];
                 const desc = parts[4];
-                
+               
                 const rawE = parseFloat(parts[1]);
                 const rawN = parseFloat(parts[2]);
                 const rawElev = parseFloat(parts[3]);
@@ -792,8 +908,31 @@
                 const y = rawElev - originElev; 
                 const z = rawN - originN;       
 
-                const pointGeo = new THREE.SphereGeometry(0.5, 16, 16); 
-                const pointMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const pointGeo = new THREE.SphereGeometry(0.5, 16, 16);
+                
+                // --- LÓGICA DE COR E CONTAGEM ATUALIZADA ---
+                let corDoPonto = 0xff0000; // Padrão
+                const idMaiusculo = pointID.toUpperCase();
+
+                if (idMaiusculo.includes('DHP')) {
+                    corDoPonto = 0x0000ff; // Azul
+                    contadorDHP++;
+                } 
+                else if (idMaiusculo.includes('ARR')) {
+                    corDoPonto = 0xffff00; // Amarelo
+                    contadorARR++;
+                } 
+                else if (idMaiusculo.includes('CRISTA')) {
+                    corDoPonto = 0xffa500; // Laranja (Novo)
+                    contadorCRISTA++;
+                }
+                else {
+                    corDoPonto = 0xff0000; // Vermelho
+                    contadorOutros++;
+                }
+                // -------------------------------------------
+
+                const pointMat = new THREE.MeshBasicMaterial({ color: corDoPonto });
                 const pointMesh = new THREE.Mesh(pointGeo, pointMat);
                 
                 pointMesh.userData.pointID = pointID.toUpperCase();
@@ -813,6 +952,16 @@
                 pointMesh.add(labelObject);
             });
 
+            // --- ATUALIZAÇÃO DA LEGENDA NA TELA ---
+            if (document.getElementById('qtd-dhp')) {
+                document.getElementById('qtd-dhp').innerText = contadorDHP;
+                document.getElementById('qtd-arr').innerText = contadorARR;
+                document.getElementById('qtd-crista').innerText = contadorCRISTA; // Atualiza Crista
+                document.getElementById('qtd-outros').innerText = contadorOutros;
+                document.getElementById('qtd-total').innerText = contadorDHP + contadorARR + contadorCRISTA + contadorOutros;
+            }
+            // --------------------------------------
+
             if (hasPoints) {
                 const allDiv = document.createElement('div');
                 allDiv.id = 'filter-all-container';
@@ -820,7 +969,7 @@
                 allCheckbox.type = 'checkbox';
                 allCheckbox.id = 'chk-filter-all';
                 allCheckbox.value = 'all';
-                allCheckbox.checked = true; 
+                allCheckbox.checked = true;
                 allCheckbox.addEventListener('change', toggleAllFilters);
 
                 const allLabel = document.createElement('label');
@@ -989,14 +1138,4 @@
 </body>
 
 </html>
-
-
-
-
-
-
-
-
-
-
 
