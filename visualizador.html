@@ -42,24 +42,27 @@
             max-height: calc(100vh - 80px); 
             overflow-y: auto; 
         }
+        #toggle-button {
+            font-size: 24px;
+            line-height: 35px; 
+            text-align: center;
+            user-select: none; 
+            width: 35px;  /* NOVO: Trava a largura da engrenagem */
+            height: 35px; /* NOVO: Trava a altura para o giro ser perfeito */
+            transition: transform 0.3s ease; 
+        }
+        #controls.expanded #toggle-button {
+            float: right; /* NOVO: Joga a engrenagem para o canto direito */
+            transform: rotate(90deg); 
+        }
         #controls-content {
             display: none; 
             margin-top: 10px; /* Espaço extra após expandir */
         }
         #controls.expanded #controls-content {
             display: block; 
-        }
-        #toggle-button {
-            font-size: 24px;
-            line-height: 35px; 
-            text-align: center;
-            user-select: none; 
-            transition: transform 0.3s ease; /* Animação ao girar */
-        }
-        #controls.expanded #toggle-button {
-            text-align: right; 
-            padding-right: 5px;
-            transform: rotate(90deg); /* O ícone de engrenagem gira ao abrir */
+            clear: both; /* NOVO: Garante que os menus fiquem abaixo da engrenagem */
+            padding-top: 5px; 
         }
         /* --- FIM DA MODIFICAÇÃO --- */
         #controls label, #controls h4 {
@@ -1138,4 +1141,5 @@
 </body>
 
 </html>
+
 
