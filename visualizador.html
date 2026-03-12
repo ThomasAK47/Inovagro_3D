@@ -553,7 +553,11 @@
             scene.background = new THREE.Color(0xabcdef);
             
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 10, 50000); 
-            camera.position.copy(originalCameraPosition); 
+            
+            /* --- NOVO: Define o eixo Z (Northing) apontando para cima na tela --- */
+            camera.up.set(0, 0, 1); 
+            
+            camera.position.copy(originalCameraPosition);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -795,11 +799,13 @@
                     controls.target.copy(center); 
                     orientationGizmo.position.copy(center); 
                     
-                    const size = box.getSize(new THREE.Vector3()).length();
+                   const size = box.getSize(new THREE.Vector3()).length();
                     camera.position.copy(center);
-                    camera.position.x += size / 2.0;
-                    camera.position.y += size / 5.0;
-                    camera.position.z += size / 2.0;
+                    
+                    /* --- MODIFICADO: Posiciona a câmera no eixo X negativo olhando para o modelo --- */
+                    camera.position.x -= size * 1.2; 
+                    /* Os eixos Y e Z da câmera permanecem iguais ao 'center' para manter a visão reta */
+                    /* --- FIM DA MODIFICAÇÃO --- */
 
                     originalSurfaceCenter.copy(center);
                     originalCameraPosition.copy(camera.position);
@@ -869,7 +875,7 @@
                         orientationGizmo.position.copy(center);
 
                         camera.position.copy(center);
-                        camera.position.x += size / 2.0;
+                        camera.position.x += size / 1.2;
                         camera.position.y += size / 5.0;
                         camera.position.z += size / 2.0;
                         
@@ -1141,6 +1147,7 @@
 </body>
 
 </html>
+
 
 
 
