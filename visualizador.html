@@ -842,8 +842,10 @@
                     const box = new THREE.Box3().setFromObject(currentSurface);
                     const center = box.getCenter(new THREE.Vector3());
                     
-                    controls.target.copy(center); 
-                    orientationGizmo.position.copy(center); 
+                    if (orientationGizmo) {
+                        controls.target.copy(center); 
+                        orientationGizmo.position.copy(center); 
+                    }
                     
                     const size = box.getSize(new THREE.Vector3()).length();
                     camera.position.copy(center);
@@ -882,37 +884,10 @@
                     alert('Erro ao carregar o arquivo da superfície.');
                     /* --- NOVO: Esconde a tela de carregamento mesmo se der erro --- */
                     const loadingScreen = document.getElementById('loading-screen');
-                    if(loadingScreen) loadingScreen.classList.add('hidden');
-                }
-            );
-
-                    currentSurface.position.set(-E, -Elev, -N);
-                    scene.add(currentSurface);
-                    console.log('Superfície carregada.');
-
-                    const box = new THREE.Box3().setFromObject(currentSurface);
-                    const center = box.getCenter(new THREE.Vector3());
-                    
-                    controls.target.copy(center); 
-                    orientationGizmo.position.copy(center); 
-                    
-                   const size = box.getSize(new THREE.Vector3()).length();
-                    camera.position.copy(center);
-                    
-                    /* --- MODIFICADO: Posiciona a câmera no eixo X negativo olhando para o modelo --- */
-                    camera.position.x -= size * 1.2; 
-                    /* Os eixos Y e Z da câmera permanecem iguais ao 'center' para manter a visão reta */
-                    /* --- FIM DA MODIFICAÇÃO --- */
-
-                    originalSurfaceCenter.copy(center);
-                    originalCameraPosition.copy(camera.position);
-                    
-                    controls.update();
-                },
-                undefined,
-                (error) => {
-                    console.error('Erro ao carregar a superfície:', error);
-                    alert('Erro ao carregar o arquivo da superfície.');
+                    if(loadingScreen) {
+                        loadingScreen.classList.add('hidden');
+                        setTimeout(() => { loadingScreen.style.display = 'none'; }, 500);
+                    }
                 }
             );
         }
