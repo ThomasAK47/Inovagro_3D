@@ -282,10 +282,56 @@
             }
         }
         /* --- FIM DA MODIFICAÇÃO --- */
+		/* --- NOVO: Estilos da Tela de Carregamento --- */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            /* Fundo claro translúcido com blur */
+            background-color: rgba(244, 247, 246, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 9999; /* Fica por cima de absolutamente tudo */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #333;
+            transition: opacity 0.5s ease; /* Desaparece suavemente */
+        }
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #378640; /* Verde Inovagro */
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #loading-text {
+            font-size: 18px;
+            font-weight: 500;
+        }
+        /* --- FIM DA MODIFICAÇÃO --- */
     </style>
 </head>
 <body>
-
+	<div id="loading-screen">
+        <div class="spinner"></div>
+        <div id="loading-text">Carregando modelo 3D...</div>
+    </div>
     <div id="controls"> 
         <div id="toggle-button">⚙️</div>
         <div id="controls-content">
@@ -788,6 +834,57 @@
                             child.material = newMaterial;
                         }
                     });
+
+                    currentSurface.position.set(-E, -Elev, -N);
+                    scene.add(currentSurface);
+                    console.log('Superfície carregada.');
+
+                    const box = new THREE.Box3().setFromObject(currentSurface);
+                    const center = box.getCenter(new THREE.Vector3());
+                    
+                    controls.target.copy(center); 
+                    orientationGizmo.position.copy(center); 
+                    
+                    const size = box.getSize(new THREE.Vector3()).length();
+                    camera.position.copy(center);
+                    
+                    /* --- MODIFICADO: Posiciona a câmera no eixo X negativo olhando para o modelo --- */
+                    camera.position.x -= size * 1.2; 
+                    /* --- FIM DA MODIFICAÇÃO --- */
+
+                    originalSurfaceCenter.copy(center);
+                    originalCameraPosition.copy(camera.position);
+                    
+                    controls.update();
+
+                    /* --- NOVO: Esconde a tela de carregamento com sucesso --- */
+                    const loadingScreen = document.getElementById('loading-screen');
+                    if(loadingScreen) {
+                        loadingScreen.classList.add('hidden');
+                        // Remove do DOM após a animação de fade out para não atrapalhar os cliques
+                        setTimeout(() => { loadingScreen.style.display = 'none'; }, 500);
+                    }
+                    /* --- FIM DA MODIFICAÇÃO --- */
+                },
+                /* --- NOVO: Atualiza o texto com a porcentagem de download da malha --- */
+                (xhr) => {
+                    if (xhr.lengthComputable) {
+                        const percentComplete = (xhr.loaded / xhr.total) * 100;
+                        const loadingText = document.getElementById('loading-text');
+                        if (loadingText) {
+                            loadingText.innerText = 'Carregando malha: ' + Math.round(percentComplete) + '%';
+                        }
+                    }
+                },
+                /* --- FIM DA MODIFICAÇÃO --- */
+                (error) => {
+                    console.error('Erro ao carregar a superfície:', error);
+                    alert('Erro ao carregar o arquivo da superfície.');
+                    /* --- NOVO: Esconde a tela de carregamento mesmo se der erro --- */
+                    const loadingScreen = document.getElementById('loading-screen');
+                    if(loadingScreen) loadingScreen.classList.add('hidden');
+                }
+            );
 
                     currentSurface.position.set(-E, -Elev, -N);
                     scene.add(currentSurface);
