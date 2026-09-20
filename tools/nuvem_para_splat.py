@@ -390,6 +390,11 @@ def main():
 
     saida = args.saida or os.path.splitext(args.entrada)[0] + "_splat.ply"
 
+    # Cria a pasta de destino antes de processar: descobrir que ela nao existe
+    # so na hora de gravar jogaria fora todo o trabalho de conversao.
+    pasta = os.path.dirname(os.path.abspath(saida))
+    os.makedirs(pasta, exist_ok=True)
+
     print(f"Lendo {args.entrada} ...")
     ext = os.path.splitext(args.entrada)[1].lower()
     reduziu_na_leitura = False
