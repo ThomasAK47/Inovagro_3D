@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <title>Inovagro_3D — Gaussian Splat</title>
+
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #1a1d1b;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        #cena { position: absolute; inset: 0; }
+
+        #topo {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+            display: flex; align-items: center; gap: 15px;
+            padding: 12px 20px; pointer-events: none;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
+        }
+        #topo img { height: 32px; width: auto; }
+        #titulo { color: #fff; font-size: 1.05em; font-weight: 500; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+        #voltar {
+            pointer-events: auto; margin-left: auto;
+            background-color: #378640; color: #fff; text-decoration: none;
+            padding: 8px 16px; border-radius: 5px; font-size: 0.9em; font-weight: 500;
+        }
+        #voltar:hover { background-color: #2a6b32; }
+
+        #painel {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            z-index: 20; text-align: center; color: #fff; max-width: 520px;
+            padding: 28px 32px; border-radius: 10px;
+            background: rgba(26, 29, 27, 0.94); box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+        }
+        #painel h2 { margin: 0 0 12px; font-size: 1.15em; font-weight: 500; }
+        #painel p { margin: 6px 0; font-size: 0.9em; line-height: 1.5; color: #c9d1cb; }
+        #painel code {
+            background: rgba(255,255,255,0.08); padding: 2px 6px;
+            border-radius: 3px; font-size: 0.88em;
+        }
+        #barra {
+            width: 100%; height: 5px; margin-top: 16px;
+            border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden;
+        }
+        #barra > div { height: 100%; width: 0%; background: #378640; transition: width 0.25s ease; }
+        .erro h2 { color: #ff8f7a; }
+
+        #ajuda {
+            position: absolute; bottom: 14px; left: 20px; z-index: 10;
+            color: rgba(255,255,255,0.55); font-size: 0.8em; line-height: 1.6;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.7); pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="cena"></div>
+
+    <div id="topo">
+        <img src="INOVAGROLOGO3.png" alt="Inovagro">
+        <span id="titulo"></span>
+        <a href="index.html" id="voltar">Voltar</a>
+    </div>
+
+    <div id="painel">
+        <h2 id="painel-titulo">Carregando o modelo...</h2>
+        <p id="painel-texto">Preparando os gaussianos.</p>
+        <div id="barra"><div></div></div>
+    </div>
+
+    <div id="ajuda">
+        Arrastar: orbitar &nbsp;·&nbsp; Scroll: aproximar &nbsp;·&nbsp; Botão direito: deslocar
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164/examples/jsm/",
+            "@mkkellogg/gaussian-splats-3d": "https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+        const painel = document.getElementById('painel');
+        const painelTitulo = document.getElementById('painel-titulo');
+        const painelTexto = document.getElementById('painel-texto');
+        const barra = document.querySelector('#barra > div');
+
+        function mostrarErro(titulo, texto) {
+            painel.classList.add('erro');
+            painel.style.display = 'block';
+            painelTitulo.textContent = titulo;
+            painelTexto.innerHTML = texto;
+            document.getElementById('barra').style.display = 'none';
+        }
+
+        // Os parametros seguem o mesmo padrao do visualizador.html:
+        // visualizador_splat.html?splat=projetos/T_16/talude_t16.splat&nome=Talude T-16
+        const params = new URLSearchParams(window.location.search);
+        const arquivo = params.get('splat');
+        const nome = params.get('nome') || 'Gaussian Splat';
+        document.getElementById('titulo').textContent = nome;
+        document.title = `Inovagro_3D — ${nome}`;
+
+        if (!arquivo) {
+            mostrarErro('Nenhum modelo especificado',
+                'Informe o arquivo na URL, por exemplo <code>?splat=projetos/T_16/talude_t16.splat</code>. ' +
+                'Formatos aceitos: <code>.splat</code>, <code>.ply</code>, <code>.ksplat</code>.');
+        } else {
+            iniciar(arquivo);
+        }
+
+        // Cada talude tem extensao e origem proprias, entao uma posicao de
+        // camera fixa nao serve: enquadra a partir da caixa envolvente real.
+        function enquadrarCena(viewer) {
+            const malha = viewer.splatMesh;
+            const total = malha.getSplatCount();
+            if (!total) return;
+
+            const caixa = new THREE.Box3();
+            const centro = new THREE.Vector3();
+            const passo = Math.max(1, Math.floor(total / 20000));
+            for (let i = 0; i < total; i += passo) {
+                malha.getSplatCenter(i, centro);
+                caixa.expandByPoint(centro);
+            }
+
+            const meio = caixa.getCenter(new THREE.Vector3());
+            const tamanho = caixa.getSize(new THREE.Vector3());
+            const raio = Math.max(tamanho.x, tamanho.y, tamanho.z) / 2 || 1;
+
+            // Distancia que enquadra o modelo. Splats sem LOD desaparecem quando ficam
+            // menores que um pixel, entao nao vale afastar mais do que o necessario.
+            const fov = THREE.MathUtils.degToRad(viewer.camera.fov);
+            const distancia = (raio / Math.sin(fov / 2)) * 0.95;
+
+            // Vista obliqua: de sudoeste, acima da cota media do talude.
+            const direcao = new THREE.Vector3(-0.6, 0.45, 0.66).normalize();
+            viewer.camera.position.copy(meio).addScaledVector(direcao, distancia);
+            viewer.camera.near = distancia / 200;
+            viewer.camera.far = distancia * 6;
+            viewer.camera.updateProjectionMatrix();
+            viewer.camera.lookAt(meio);
+
+            if (viewer.controls) {
+                viewer.controls.target.copy(meio);
+                viewer.controls.update();
+            }
+        }
+
+        function iniciar(caminho) {
+            const viewer = new GaussianSplats3D.Viewer({
+                rootElement: document.getElementById('cena'),
+                // O conversor grava na ordem (E, cota, N), entao a cota e o eixo Y.
+                cameraUp: [0, 1, 0],
+                // Posicao provisoria; enquadrarCena() reposiciona a camera
+                // assim que as dimensoes reais do modelo sao conhecidas.
+                initialCameraPosition: [0, 1, 1],
+                initialCameraLookAt: [0, 0, 0],
+                // Obrigatorio no GitHub Pages: memoria compartilhada exige os
+                // cabecalhos COOP/COEP, que o Pages nao permite configurar.
+                sharedMemoryForWorkers: false,
+                sceneRevealMode: GaussianSplats3D.SceneRevealMode.Gradual,
+                showLoadingUI: false,
+                antialiased: true
+            });
+
+            viewer.addSplatScene(caminho, {
+                // Sem treino contra imagens nao ha SH de grau maior; grau 0 e o
+                // que o conversor gera e evita carregar coeficientes vazios.
+                sphericalHarmonicsDegree: 0,
+                splatAlphaRemovalThreshold: 5,
+                progressiveLoad: true,
+                onProgress: (pct) => {
+                    barra.style.width = `${Math.min(pct, 100)}%`;
+                    painelTexto.textContent = `${Math.round(pct)}% carregado`;
+                }
+            })
+            .then(() => {
+                enquadrarCena(viewer);
+                painel.style.display = 'none';
+                viewer.start();
+            })
+            .catch((erro) => {
+                console.error(erro);
+                mostrarErro('Falha ao carregar o modelo',
+                    `Nao foi possivel abrir <code>${caminho}</code>.<br>` +
+                    'Confira se o caminho esta correto e se o arquivo foi enviado para o repositorio.<br>' +
+                    `<small>${erro && erro.message ? erro.message : erro}</small>`);
+            });
+        }
+    </script>
+
+</body>
+</html>

@@ -58,6 +58,93 @@ def ler_las(caminho):
     return xyz, np.clip(rgb, 0, 255)
 
 
+def voxel_para_alvo(mins, maxs, alvo):
+    """Aresta de voxel que rende ~alvo pontos. A nuvem e uma superficie
+    drapeada, entao a densidade e governada pela area dos dois maiores eixos."""
+    extensao = np.sort(np.asarray(maxs) - np.asarray(mins))[::-1]
+    area = extensao[0] * extensao[1]
+    if area <= 0 or alvo <= 0:
+        return 0.0
+    return max(float(np.sqrt(area / alvo)), 1e-4)
+
+
+def _fundir(estado, chaves, soma_xyz, soma_rgb, contagem):
+    """Funde um lote reduzido no acumulador, somando voxels repetidos."""
+    if estado is not None:
+        chaves = np.concatenate([estado[0], chaves])
+        soma_xyz = np.concatenate([estado[1], soma_xyz])
+        soma_rgb = np.concatenate([estado[2], soma_rgb])
+        contagem = np.concatenate([estado[3], contagem])
+
+    unicas, inverso = np.unique(chaves, return_inverse=True)
+    n = len(unicas)
+    acc_xyz, acc_rgb, acc_n = np.zeros((n, 3)), np.zeros((n, 3)), np.zeros(n)
+    np.add.at(acc_xyz, inverso, soma_xyz)
+    np.add.at(acc_rgb, inverso, soma_rgb)
+    np.add.at(acc_n, inverso, contagem)
+    return unicas, acc_xyz, acc_rgb, acc_n
+
+
+def _reduzir_lote(xyz, rgb, origem, voxel, ny, nz):
+    """Agrupa um lote de pontos por voxel e devolve as somas por voxel."""
+    ijk = np.floor((xyz - origem) / voxel).astype(np.int64)
+    chaves = (ijk[:, 0] * ny + ijk[:, 1]) * nz + ijk[:, 2]
+    unicas, inverso, contagem = np.unique(chaves, return_inverse=True, return_counts=True)
+    n = len(unicas)
+    soma_xyz, soma_rgb = np.zeros((n, 3)), np.zeros((n, 3))
+    np.add.at(soma_xyz, inverso, xyz)
+    np.add.at(soma_rgb, inverso, rgb)
+    return unicas, soma_xyz, soma_rgb, contagem.astype(np.float64)
+
+
+def ler_las_reduzido(caminho, voxel, alvo, pontos_por_lote=4_000_000):
+    """Le LAS/LAZ em lotes, reamostrando em voxels durante a leitura.
+
+    E o unico caminho viavel para nuvens de centenas de milhoes de pontos:
+    a memoria fica limitada ao numero de voxels, nao ao numero de pontos.
+    """
+    import laspy
+
+    with laspy.open(caminho) as f:
+        hdr = f.header
+        mins, maxs = np.asarray(hdr.mins), np.asarray(hdr.maxs)
+        total = hdr.point_count
+
+        if voxel <= 0:
+            voxel = voxel_para_alvo(mins, maxs, alvo)
+            print(f"  alvo de {alvo:,} pontos -> voxel de {voxel:.3f} m")
+
+        ny = int((maxs[1] - mins[1]) / voxel) + 2
+        nz = int((maxs[2] - mins[2]) / voxel) + 2
+        nx = int((maxs[0] - mins[0]) / voxel) + 2
+        if nx * ny * nz >= 2 ** 62:
+            raise ValueError(f"voxel de {voxel:.4f} m e pequeno demais para a extensao da nuvem")
+
+        dims = {d.name.lower() for d in hdr.point_format.dimensions}
+        tem_rgb = {"red", "green", "blue"} <= dims
+        if not tem_rgb:
+            print("  aviso: nuvem sem RGB, usando cinza uniforme")
+
+        estado = None
+        lidos = 0
+        for lote in f.chunk_iterator(pontos_por_lote):
+            xyz = np.column_stack([lote.x, lote.y, lote.z]).astype(np.float64)
+            if tem_rgb:
+                rgb = np.column_stack([lote.red, lote.green, lote.blue]).astype(np.float64)
+                if rgb.max() > 255:
+                    rgb /= 257.0
+            else:
+                rgb = np.full_like(xyz, 180.0)
+            estado = _fundir(estado, *_reduzir_lote(xyz, np.clip(rgb, 0, 255), mins, voxel, ny, nz))
+            lidos += len(xyz)
+            print(f"\r  lidos {lidos:,}/{total:,} pontos -> {len(estado[0]):,} voxels", end="", flush=True)
+
+    print()
+    _, soma_xyz, soma_rgb, contagem = estado
+    c = contagem[:, None]
+    return soma_xyz / c, soma_rgb / c, voxel
+
+
 def ler_ply(caminho):
     from plyfile import PlyData
     ply = PlyData.read(caminho)
@@ -240,6 +327,29 @@ def escrever_ply_3dgs(caminho, xyz, normais, f_dc, opacidade, escalas, quat, com
         f.write(saida.tobytes())
 
 
+def escrever_splat(caminho, xyz, f_dc, opacidade, escalas, quat):
+    """Formato .splat (antimatter15): 32 bytes por gaussiano, ~2x menor que o
+    PLY. E o que os viewers web carregam mais rapido."""
+    n = len(xyz)
+    buf = np.zeros((n, 32), dtype=np.uint8)
+
+    buf[:, 0:12] = xyz.astype("<f4").view(np.uint8).reshape(n, 12)
+    buf[:, 12:24] = np.exp(escalas).astype("<f4").view(np.uint8).reshape(n, 12)
+
+    rgb = np.clip((0.5 + SH_C0 * f_dc) * 255, 0, 255)
+    alfa = np.clip(255 / (1 + np.exp(-opacidade)), 0, 255)
+    buf[:, 24:27] = rgb.astype(np.uint8)
+    buf[:, 27] = alfa.astype(np.uint8)
+
+    q = quat / np.linalg.norm(quat, axis=1, keepdims=True)
+    buf[:, 28:32] = np.clip(q * 128 + 128, 0, 255).astype(np.uint8)
+
+    # Os viewers desenham na ordem do arquivo, entao os maiores/mais opacos
+    # primeiro reduz artefato enquanto o resto ainda esta carregando.
+    peso = np.exp(escalas).sum(axis=1) / (1 + np.exp(-opacidade))
+    buf[np.argsort(-peso)].tofile(caminho)
+
+
 # -------------------------------------------------------------------- main ---
 
 def main():
@@ -249,6 +359,11 @@ def main():
     )
     p.add_argument("entrada", help="nuvem de pontos (.las/.laz/.ply/.xyz/.txt/.csv)")
     p.add_argument("-o", "--saida", help="arquivo .ply de saida (padrao: <entrada>_splat.ply)")
+    p.add_argument("--alvo", type=int, default=0,
+                   help="numero desejado de gaussianos; escolhe o voxel sozinho. "
+                        "Use ~1500000 para web, ~4000000 para desktop")
+    p.add_argument("--formato", choices=("ply", "splat", "ambos"), default="ply",
+                   help="ply = 68 bytes/gaussiano (edicao); splat = 32 bytes (web)")
     p.add_argument("--voxel", type=float, default=0.0,
                    help="aresta do voxel em metros para uniformizar a densidade (0 = nao reamostrar)")
     p.add_argument("--max-pontos", type=int, default=0,
@@ -276,17 +391,34 @@ def main():
     saida = args.saida or os.path.splitext(args.entrada)[0] + "_splat.ply"
 
     print(f"Lendo {args.entrada} ...")
-    xyz, rgb, ordem_padrao = ler_nuvem(args.entrada)
-    print(f"  {len(xyz):,} pontos")
+    ext = os.path.splitext(args.entrada)[1].lower()
+    reduziu_na_leitura = False
+
+    if ext in (".las", ".laz") and (args.voxel > 0 or args.alvo > 0):
+        # Nuvem grande: reamostra durante a leitura, sem nunca materializar
+        # todos os pontos na memoria.
+        xyz, rgb, voxel_usado = ler_las_reduzido(args.entrada, args.voxel, args.alvo)
+        ordem_padrao = "xzy"
+        reduziu_na_leitura = True
+        print(f"  {len(xyz):,} pontos apos reamostragem")
+    else:
+        xyz, rgb, ordem_padrao = ler_nuvem(args.entrada)
+        voxel_usado = 0.0
+        print(f"  {len(xyz):,} pontos")
 
     ordem = ordem_padrao if args.ordem_eixos == "auto" else args.ordem_eixos.lower()
     if ordem != "xyz":
         xyz = reordenar_eixos(xyz, ordem)
         print(f"  eixos reordenados para '{ordem}' -> (E, cota, N)")
 
-    if args.voxel > 0:
-        xyz, rgb = reamostrar_em_voxels(xyz, rgb, args.voxel)
-        print(f"  voxel {args.voxel} m -> {len(xyz):,} pontos")
+    if not reduziu_na_leitura:
+        voxel = args.voxel or voxel_para_alvo(xyz.min(axis=0), xyz.max(axis=0), args.alvo)
+        if voxel > 0:
+            if args.alvo and not args.voxel:
+                print(f"  alvo de {args.alvo:,} pontos -> voxel de {voxel:.3f} m")
+            xyz, rgb = reamostrar_em_voxels(xyz, rgb, voxel)
+            voxel_usado = voxel
+            print(f"  voxel {voxel:.3f} m -> {len(xyz):,} pontos")
 
     if args.max_pontos and len(xyz) > args.max_pontos:
         sel = np.random.default_rng(0).choice(len(xyz), args.max_pontos, replace=False)
@@ -318,10 +450,11 @@ def main():
     nor = R[:, :, 2]
     quat = matriz_para_quaternion(R)
 
-    # Numa superficie localmente 2D a distancia ao j-esimo vizinho cresce com
-    # sqrt(j), entao dividir a distancia do k-esimo por sqrt(k) devolve o
-    # espacamento entre pontos adjacentes - estimativa robusta a duplicatas.
-    espacamento = dist[:, -1] / np.sqrt(args.vizinhos)
+    # Numa superficie localmente 2D cabem pi*r^2/d^2 vizinhos dentro do raio r,
+    # entao a distancia ao k-esimo vizinho e d*sqrt(k/pi) e o espacamento medio
+    # sai de d = r_k*sqrt(pi/k). Usar o k-esimo (e nao o primeiro) torna a
+    # estimativa robusta a pontos duplicados.
+    espacamento = dist[:, -1] * np.sqrt(np.pi / args.vizinhos)
     sigma_t = np.maximum(espacamento * args.escala, 1e-6)
     sigma_n = np.maximum(sigma_t * args.espessura, 1e-7)
     escalas = np.log(np.column_stack([sigma_t, sigma_t, sigma_n]))
@@ -346,10 +479,21 @@ def main():
     if extensao > 1e5:
         print(f"  AVISO: coordenadas ate {extensao:.0f} m da origem; float32 vai perder precisao")
 
-    print(f"Gravando {saida} ...")
-    escrever_ply_3dgs(saida, xyz_local.astype(np.float32), nor.astype(np.float32),
-                      f_dc.astype(np.float32), opacidade.astype(np.float32),
-                      escalas.astype(np.float32), quat.astype(np.float32), args.sh_rest)
+    xyz32 = xyz_local.astype(np.float32)
+    f_dc32, op32 = f_dc.astype(np.float32), opacidade.astype(np.float32)
+    esc32, quat32 = escalas.astype(np.float32), quat.astype(np.float32)
+
+    gerados = []
+    if args.formato in ("ply", "ambos"):
+        print(f"Gravando {saida} ...")
+        escrever_ply_3dgs(saida, xyz32, nor.astype(np.float32), f_dc32, op32,
+                          esc32, quat32, args.sh_rest)
+        gerados.append(saida)
+    if args.formato in ("splat", "ambos"):
+        caminho_splat = os.path.splitext(saida)[0] + ".splat"
+        print(f"Gravando {caminho_splat} ...")
+        escrever_splat(caminho_splat, xyz32, f_dc32, op32, esc32, quat32)
+        gerados.append(caminho_splat)
 
     meta = {
         "origem_local": {"E": origem[0], "cota": origem[1], "N": origem[2]},
@@ -364,11 +508,21 @@ def main():
         },
     }
     caminho_meta = os.path.splitext(saida)[0] + ".json"
+    meta["parametros"]["alvo"] = args.alvo
     with open(caminho_meta, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2, ensure_ascii=False)
 
-    mb = os.path.getsize(saida) / 1e6
-    print(f"OK: {len(xyz):,} gaussianos, {mb:.1f} MB")
+    print(f"OK: {len(xyz):,} gaussianos")
+    if args.alvo:
+        desvio = len(xyz) / args.alvo
+        if not 0.8 <= desvio <= 1.25:
+            # O alvo sai da area em planta; terreno inclinado tem mais superficie
+            # que planta, entao o resultado costuma passar do pedido.
+            sugerido = voxel_usado * np.sqrt(desvio)
+            print(f"    ficou {desvio:.2f}x o alvo; para chegar perto, "
+                  f"repita com --voxel {sugerido:.3f}")
+    for g in gerados:
+        print(f"    {g}  ({os.path.getsize(g) / 1e6:.1f} MB)")
     print(f"    offset da origem gravado em {caminho_meta}")
 
 
