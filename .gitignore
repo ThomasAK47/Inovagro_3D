@@ -1,0 +1,10 @@
+# Nuvens de pontos brutas: sao dados de origem, ficam fora do repositorio.
+# Um voo de drone tem centenas de MB e o GitHub bloqueia arquivos acima de
+# 100 MB. Só o .splat gerado entra aqui.
+*.laz
+*.las
+*.e57
+*.pts
+
+# Saidas intermediarias do conversor
+*_splat.ply
